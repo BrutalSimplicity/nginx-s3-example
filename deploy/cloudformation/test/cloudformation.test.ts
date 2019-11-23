@@ -5,7 +5,9 @@ import { VpcStack } from '../lib/vpc-stack';
 test('Empty Stack', () => {
     const app = new cdk.App();
     // WHEN
-    const stack = new VpcStack(app, 'MyTestStack');
+    const stack = new VpcStack(app, 'MyTestStack', {
+      vpcId: 'vpc-123456789'
+    });
     // THEN
     expectCDK(stack).to(matchTemplate({
       "Resources": {}

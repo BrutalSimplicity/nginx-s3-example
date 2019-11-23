@@ -1,51 +1,62 @@
 import cdk = require('@aws-cdk/core');
-import ecs = require('@aws-cdk/aws-ecs');
-import ecs_patterns = require('@aws-cdk/aws-ecs-patterns');
 import { IVpc } from '@aws-cdk/aws-ec2';
 import { Certificate } from '@aws-cdk/aws-certificatemanager';
 import { HostedZone } from '@aws-cdk/aws-route53';
-import { Protocol, EcrImage } from '@aws-cdk/aws-ecs';
+import { EcrImage, Cluster } from '@aws-cdk/aws-ecs';
 import { ApplicationProtocol } from '@aws-cdk/aws-elasticloadbalancingv2';
-import { Repository } from '@aws-cdk/aws-ecr';
+import { Repository, IRepository } from '@aws-cdk/aws-ecr';
+import { ApplicationLoadBalancedFargateService } from '@aws-cdk/aws-ecs-patterns';
 
 export interface FargateStackProps {
     stack?: cdk.StackProps;
     vpc: IVpc;
+    repository: IRepository;
+    clusterName: string;
+    serviceName: string;
     certificateArn: string;
+    zoneDomainName: string;
+    domainName: string;
+    cpu: number;
+    memory: number;
+    numInstances: number;
 }
 
 export class FargateStack extends cdk.Stack {
     constructor(scope: cdk.Construct, id: string, props: FargateStackProps) {
         super(scope, id, props.stack);
 
-        const cluster = new ecs.Cluster(this, 'cluster', {
+        const cluster = new Cluster(this, 'cluster', {
+            clusterName: props.clusterName,
             vpc: props.vpc
         });
 
         const certificate = Certificate.fromCertificateArn(this, 'certificate', props.certificateArn);
 
         const hostedZone = HostedZone.fromLookup(this, 'hosted-zone', {
-            domainName: 'opssuitego.dev2.swacorp.com'
+            domainName: props.zoneDomainName
           });
 
-        const repo = Repository.fromRepositoryName(this, 'repository', '233911428360.dkr.ecr.us-east-1.amazonaws.com/basic-nginx-proxy');
-        const image = EcrImage.fromEcrRepository(repo, 'latest');
+        const image = EcrImage.fromEcrRepository(props.repository, 'latest');
 
-        const fargate = new ecs_patterns.ApplicationLoadBalancedFargateService(this, 'fargate', {
+        const fargate = new ApplicationLoadBalancedFargateService(this, 'fargate', {
             cluster,
             certificate,
             domainZone: hostedZone,
-            domainName: 'basic-app.opssuitego.dev2.swacorp.com',
+            domainName: props.domainName,
             protocol: ApplicationProtocol.HTTPS,
             cpu: 512,
             memoryLimitMiB: 1024,
             desiredCount: 4,
-            serviceName: 'nginx-proxy-service',
+            serviceName: props.serviceName,
             taskImageOptions: {
                 image,
-                containerName: 'nginx:alpine',
+                containerName: 'nginx',
                 containerPort: 80
             }
+        });
+
+        fargate.targetGroup.configureHealthCheck({
+            path: '/health'
         });
     }
 }
