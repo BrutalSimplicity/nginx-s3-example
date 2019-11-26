@@ -5,7 +5,7 @@ import { VpcStack } from '../lib/vpc-stack';
 import { S3Stack } from '../lib/s3-stack';
 import { applyPolicies } from '../lib/policies';
 import { FargateStack } from '../lib/fargate-stack';
-import { repositoryExists, EcrConfig, EcrStack } from '../lib/ecr-stack';
+import { EcrStack } from '../lib/ecr-stack';
 
 const stackId = process.env['STACK_ID'] || '' as string;
 const account = process.env['CDK_ACCOUNT'] || '' as string;
@@ -21,9 +21,6 @@ const domainName = process.env['DOMAIN_NAME'] || '' as string;
 const clusterName = process.env['CLUSTER_NAME'] || '' as string;
 const serviceName = process.env['SERVICE_NAME'] || '' as string;
 const imageName = process.env['IMAGE_NAME'] || '' as string;
-const accessKey = process.env['AWS_ACCESS_KEY'] || '' as string;
-const secretKey = process.env['AWS_SECRET_ACCESS_KEY'] || '' as string;
-const token = process.env['AWS_SESSION_TOKEN'] || '' as string;
 
 const required = {
     stackId,
@@ -71,19 +68,10 @@ const props = {
     env: { account, region }
 } as cdk.StackProps;
 
-const ecrConfig = {
-    accessKey,
-    secret: secretKey,
-    accountId: account,
-    region,
-    token
-} as EcrConfig;
-
 async function createStacks(): Promise<void> {
     const ecrStack = new EcrStack(app, `${stackId}-ecr`, {
         stack: props,
-        imageName,
-        shouldCreate: !(await repositoryExists(imageName, ecrConfig))
+        imageName
     });
 
     const s3Stack = new S3Stack(app, `${stackId}-s3`, {
@@ -113,7 +101,8 @@ async function createStacks(): Promise<void> {
         zoneDomainName: zoneDomain,
         numInstances: parseInt(numInstances, 10),
         repository: ecrStack.repository,
-        serviceName
+        serviceName,
+        bucketId
     });
 }
 

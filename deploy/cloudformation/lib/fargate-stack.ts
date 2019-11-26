@@ -19,6 +19,7 @@ export interface FargateStackProps {
     cpu: number;
     memory: number;
     numInstances: number;
+    bucketId: string;
 }
 
 export class FargateStack extends cdk.Stack {
@@ -38,6 +39,8 @@ export class FargateStack extends cdk.Stack {
 
         const image = EcrImage.fromEcrRepository(props.repository, 'latest');
 
+        const bucketDomain = props.bucketId + '.s3.amazonaws.com';
+
         const fargate = new ApplicationLoadBalancedFargateService(this, 'fargate', {
             cluster,
             certificate,
@@ -51,7 +54,10 @@ export class FargateStack extends cdk.Stack {
             taskImageOptions: {
                 image,
                 containerName: 'nginx',
-                containerPort: 80
+                containerPort: 80,
+                environment: {
+                    'BUCKET_DOMAIN': bucketDomain
+                }
             }
         });
 
